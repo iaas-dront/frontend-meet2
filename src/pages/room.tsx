@@ -41,7 +41,8 @@ export default function Room() {
   const username =
     user?.displayName ||
     user?.email?.split("@")[0] ||
-    User-${Math.floor(Math.random() * 9999)};
+    `User-${Math.floor(Math.random() * 9999)}`
+
 
   /* ================= CHAT ================= */
   const [chatOpen, setChatOpen] = useState(false);
