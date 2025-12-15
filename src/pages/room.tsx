@@ -41,11 +41,11 @@ export default function Room() {
   const user = auth.currentUser;
 
   // Username estable (evita errores de build)
-  const username = useMemo(() => {
-    return (
-      user?.displayName ||
-      user?.email?.split("@")[0] ||
-      `User-${Math.floor(Math.random() * 9999)}`
+  const username =
+  user?.displayName ||
+  user?.email?.split("@")[0] ||
+  `User-${Math.floor(Math.random() * 9999)}`;
+
     );
   }, [user]);
 
