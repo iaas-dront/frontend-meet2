@@ -1,5 +1,7 @@
 iimport { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
+
 
 import "../styles/room.sass";
 
@@ -66,18 +68,25 @@ export default function Room() {
     };
   }, [id, username]);
 
-  const sendMessage = () => {
-    if (!message.trim() || !id) return;
+  cconst sendMessage = () => {
+  if (!message.trim() || !id) return;
 
-    socket.emit("send_message", {
-      roomId: id,
-      sender: username,
-      message,
-      time: Date.now(),
-    });
+  socket.emit("send_message", {
+    roomId: id,
+    sender: username,
+    message,
+    time: Date.now(),
+  });
 
-    setMessage("");
-  };
+  // 👉 IA recibe el chat
+  aiSocketRef.current?.emit("ai:chat", {
+    username,
+    message,
+  });
+
+  setMessage("");
+};
+
 
   /* ================= CONTROLS ================= */
   const [muted, setMuted] = useState(false);
@@ -87,6 +96,9 @@ export default function Room() {
   const [sharing, setSharing] = useState(false);
   const [cameraConfirmed, setCameraConfirmed] = useState(false);
   const [micConfirmed, setMicConfirmed] = useState(false);
+  const aiSocketRef = useRef<Socket | null>(null);
+  const [aiSummary, setAiSummary] = useState("");
+
 
   /* ================= VOICE + VIDEO ================= */
   const {
@@ -147,6 +159,36 @@ useEffect(() => {
     });
   }, [remoteStreams]);
 
+
+ /* ================= ia ================= */
+
+  useEffect(() => {
+  if (!user) return;
+
+  aiSocketRef.current = io(import.meta.env.VITE_AI_SERVER_URL);
+
+  // 👉 usuario entra a la reunión IA
+  aiSocketRef.current.emit("ai:join", {
+    username,
+    email: user.email,
+  });
+
+  // 👉 recibe resumen final
+  aiSocketRef.current.on("ai:summary", (summary: string) => {
+    setAiSummary(summary);
+  });
+
+  return () => {
+    aiSocketRef.current?.disconnect();
+  };
+}, [user, username]);
+
+
+
+
+
+
+  
   /* ================= TOGGLE CAMARA ================= */
   useEffect(() => {
     if (!videoStream) return;
@@ -288,17 +330,18 @@ useEffect(() => {
           </button>
 
           <button
-            className="room__btn room__btn--hangup"
-            onClick={() => {
-              stopAllMedia();
-              endCall();
-              navigate("/home");
-            }}
-          >
-            End
-          </button>
-        </div>
-      </section>
+           <button
+  className="room__btn room__btn--hangup"
+  onClick={() => {
+    aiSocketRef.current?.emit("ai:end-meeting"); // 🔥 IA
+    stopAllMedia();
+    endCall();
+    navigate("/home");
+  }}
+>
+  End
+</button>
+
 
       {/* ===== PARTICIPANTES ===== */}
       <aside className="room__grid">
@@ -386,29 +429,37 @@ useEffect(() => {
       </button>
 
       {chatOpen && (
-        <>
-          <div className="chat-overlay" onClick={() => setChatOpen(false)} />
-          <div className="room__chat-panel" ref={chatRef}>
-            <div className="room__chat-messages">
-              {messages.map((m, i) => (
-                <p key={i}>
-                  <strong>{m.sender}: </strong>
-                  {m.message}
-                </p>
-              ))}
-            </div>
-
-            <div className="room__chat-input">
-              <input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Write a message..."
-              />
-              <button onClick={sendMessage}>Send</button>
-            </div>
+      <>
+        <div className="chat-overlay" onClick={() => setChatOpen(false)} />
+        <div className="room__chat-panel" ref={chatRef}>
+          <div className="room__chat-messages">
+            {messages.map((m, i) => (
+              <p key={i}>
+                <strong>{m.sender}: </strong>
+                {m.message}
+              </p>
+            ))}
           </div>
-        </>
-      )}
-    </main>
-  );
-}
+
+          <div className="room__chat-input">
+            <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Write a message..."
+            />
+            <button onClick={sendMessage}>Send</button>
+          </div>
+        </div>
+      </>
+    )}
+
+    {/* 👇 AQUÍ */}
+    {aiSummary && (
+      <div className="ai-summary">
+        <h3>🧠 Resumen de la reunión</h3>
+        <pre>{aiSummary}</pre>
+      </div>
+    )}
+
+  </main>
+);
