@@ -1,4 +1,4 @@
-iimport { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 
@@ -68,7 +68,7 @@ export default function Room() {
     };
   }, [id, username]);
 
-  cconst sendMessage = () => {
+  const sendMessage = () => {
   if (!message.trim() || !id) return;
 
   socket.emit("send_message", {
@@ -181,7 +181,7 @@ useEffect(() => {
   return () => {
     aiSocketRef.current?.disconnect();
   };
-}, [user, username]);
+}, [user, username]);  
 
 
 
@@ -212,7 +212,7 @@ useEffect(() => {
     return () => {
       stopAllMedia();
     };
-  }, []);
+  }, []); 
 
   /* ================= UI ================= */
   return (
@@ -330,10 +330,11 @@ useEffect(() => {
           </button>
 
           <button
-           <button
+           
+  
   className="room__btn room__btn--hangup"
   onClick={() => {
-    aiSocketRef.current?.emit("ai:end-meeting"); // 🔥 IA
+    aiSocketRef.current?.emit("ai:end-meeting");
     stopAllMedia();
     endCall();
     navigate("/home");
@@ -342,6 +343,8 @@ useEffect(() => {
   End
 </button>
 
+</div>      
+</section> 
 
       {/* ===== PARTICIPANTES ===== */}
       <aside className="room__grid">
@@ -462,4 +465,4 @@ useEffect(() => {
     )}
 
   </main>
-);
+);}
