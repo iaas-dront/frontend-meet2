@@ -38,10 +38,10 @@ export default function Room() {
   const auth = getAuth();
   const user = auth.currentUser;
 
-  const username =
-    user?.displayName ||
-    user?.email?.split("@")[0] ||
-    `User-${Math.floor(Math.random() * 9999)}`
+ const userName =
+  user?.displayName ||
+  user?.email?.split("@")[0] ||
+  `User-${Math.floor(Math.random() * 9999)}`;
 
 
   /* ================= CHAT ================= */
