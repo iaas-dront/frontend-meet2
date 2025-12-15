@@ -1,0 +1,112 @@
+@import "./editprofile"
+
+// ===========================
+// DELETE ACCOUNT PAGE
+// ===========================
+.deleteaccount-page
+  position: relative
+  z-index: 1
+  background: $bg
+  min-height: 100vh
+  display: flex
+  flex-direction: column
+
+// ===========================
+// HEADER
+// ===========================
+.delete-header
+  display: flex
+  align-items: center
+  padding: 1rem 2rem
+  justify-content: flex-start
+  position: relative
+  z-index: 10
+
+.header-left
+  display: flex
+  align-items: center
+  gap: 1rem
+
+.btn-menu
+  font-size: 1.7rem
+  background: none
+  border: none
+  cursor: pointer
+  z-index: 20000
+
+.logo
+  height: 65px
+  cursor: pointer
+
+// ===========================
+// DELETE CARD
+// ===========================
+.delete-card
+  background: $red
+  padding: 40px
+  border-radius: 15px
+  width: 450px
+  display: flex
+  flex-direction: column
+  align-items: center
+  color: white
+  margin: 40px auto
+
+.delete-title
+  font-size: 26px
+  font-weight: 800
+  text-align: center
+  margin-bottom: 20px
+
+.btn-delete-main
+  background: white
+  color: $red
+  padding: 12px 20px
+  border: none
+  border-radius: 10px
+  cursor: pointer
+  font-size: 18px
+  font-weight: 600
+
+  &:hover
+    background: #ffe5e5
+
+.delete-password-input
+  width: 100%
+  padding: 10px
+  border-radius: 8px
+  border: none
+  margin-bottom: 15px
+  font-size: 16px
+
+.delete-confirm-text
+  font-size: 20px
+  font-weight: 600
+  text-align: center
+  margin-bottom: 20px
+
+.delete-confirm-buttons
+  display: flex
+  gap: 15px
+
+  button
+    padding: 10px 18px
+    border: none
+    border-radius: 8px
+    font-size: 16px
+    font-weight: 600
+    cursor: pointer
+
+  .btn-confirm-delete
+    background: white
+    color: $red
+
+    &:hover
+      background: #ffe5e5
+
+  .btn-confirm-cancel
+    background: #333
+    color: white
+
+    &:hover
+      background: #555

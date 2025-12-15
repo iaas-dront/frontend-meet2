@@ -1,0 +1,355 @@
+$red: #ff4d4d
+$bg: #f6eded
+$purple: #5b3cc4
+$muted: #777
+$overlay: rgba(0, 0, 0, 0.45)
+
+.home-container
+  background: $bg
+  min-height: 100vh
+  display: flex
+  flex-direction: column
+  padding: 0
+  margin: 0
+
+/* HEADER */
+.home-header
+  display: flex
+  justify-content: space-between
+  align-items: center
+  padding: 1rem 2rem
+
+.header-left
+  display: flex
+  align-items: center
+  gap: 1rem
+
+.hamburger-btn
+  font-size: 1.6rem
+  background: none
+  border: none
+  cursor: pointer
+
+.logo
+  height: 65px
+
+.navbar
+  display: flex
+  gap: 2rem
+
+  a
+    text-decoration: none
+    color: #000
+    font-size: .95rem
+
+/* LEFT BUTTON */
+.sidebar-btn
+  margin-left: 1.5rem
+  margin-top: .5rem
+  background: $red
+  color: white
+  padding: .6rem 1rem
+  width: 130px
+  text-align: center
+  border-radius: 8px
+  font-weight: bold
+
+/* MAIN CONTENT */
+.home-main
+  text-align: center
+  padding: 3rem 0
+
+.main-title
+  font-size: 2.7rem
+  font-weight: 700
+  line-height: 1.2
+  margin-bottom: 1rem
+
+.main-subtitle
+  color: #444
+  margin-bottom: 2rem
+
+.action-section
+  margin-top: 1rem
+
+.question
+  font-size: 1rem
+  margin-bottom: 1rem
+
+.actions
+  display: flex
+  justify-content: center
+  align-items: center
+  gap: 1rem
+  flex-wrap: wrap
+
+.create-btn, .join-btn
+  background: $red
+  color: white
+  border: none
+  padding: .6rem 1.2rem
+  border-radius: 7px
+  font-weight: bold
+  cursor: pointer
+  transition: transform .12s ease, box-shadow .12s ease
+  &:hover
+    transform: translateY(-2px)
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08)
+
+.room-input
+  padding: .6rem
+  border: 1px solid #bbb
+  border-radius: 6px
+  width: 220px
+  min-width: 160px
+
+/* FOOTER */
+.home-footer
+  margin-top: 3rem
+  padding: 2rem 3rem
+
+.footer-divider
+  width: 100%
+  height: 1px
+  background: #ccc
+  margin-bottom: 1.5rem
+  margin-top: 1.5rem
+
+.home-footer h3
+  margin-bottom: 1rem
+
+.footer-columns
+  display: flex
+  justify-content: space-between
+  margin-top: 1rem
+
+.footer-columns div p
+  margin: .4rem 0
+
+/* ===== MODAL PARA MOSTRAR CÓDIGO ===== */
+.modal-overlay
+  position: fixed
+  top: 0
+  left: 0
+  width: 100%
+  height: 100%
+  background: $overlay
+  display: flex
+  justify-content: center
+  align-items: center
+  z-index: 500
+  animation: fadeIn .18s ease-out
+
+.modal
+  background: white
+  padding: 1.6rem
+  border-radius: 14px
+  width: 92%
+  max-width: 420px
+  text-align: center
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18)
+  animation: scaleUp .22s ease-out
+  -webkit-backdrop-filter: blur(4px)
+  backdrop-filter: blur(4px)
+
+.modal-title
+  font-size: 1.4rem
+  font-weight: 700
+  margin-bottom: .25rem
+  color: #222
+
+.modal-subtitle
+  color: $muted
+  margin-bottom: 1rem
+  font-size: .95rem
+
+/* Código y botones agrupados */
+.code-box
+  background: #fafafa
+  padding: 1rem
+  border-radius: 10px
+  display: flex
+  justify-content: space-between
+  align-items: center
+  gap: .75rem
+  margin-bottom: 1rem
+  border: 1px solid #eee
+
+.code
+  font-size: 1.35rem
+  font-weight: 800
+  letter-spacing: 2px
+  color: $purple
+  font-family: "SFMono-Regular", Menlo, Monaco, "Roboto Mono", monospace
+  padding: .2rem .6rem
+  background: rgba(91, 60, 196, 0.06)
+  border-radius: 6px
+
+/* Botones del modal */
+.copy-btn, .share-btn, .close-btn
+  margin-top: 0.4rem
+  width: 100%
+  padding: .72rem
+  border-radius: 8px
+  font-weight: 700
+  border: none
+  cursor: pointer
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s
+
+.copy-btn
+  background: $purple
+  color: white
+  display: inline-flex
+  justify-content: center
+  align-items: center
+  gap: .6rem
+  font-size: .95rem
+  &:hover
+    transform: translateY(-2px)
+    box-shadow: 0 8px 22px rgba(91,60,196,0.12)
+
+.share-btn
+  background: #0f62fe
+  color: white
+  display: inline-flex
+  justify-content: center
+  align-items: center
+  gap: .6rem
+  font-size: .95rem
+  margin-top: .6rem
+  &:hover
+    transform: translateY(-2px)
+    box-shadow: 0 8px 22px rgba(15,98,254,0.12)
+
+.close-btn
+  background: transparent
+  color: #333
+  border: 1px solid #e3e3e3
+  margin-top: .6rem
+  &:hover
+    background: #fafafa
+
+/* small inline helper for the "copied" state */
+.copy-indicator
+  display: inline-block
+  font-size: .85rem
+  color: #1b8a32
+  margin-left: .6rem
+
+/* responsive adjustments */
+@media (max-width: 520px)
+  .modal
+    padding: 1rem
+    max-width: 92%
+
+  .code
+    font-size: 1.1rem
+
+  .copy-btn, .share-btn, .close-btn
+    padding: .65rem
+
+/* ANIMACIONES */
+@keyframes fadeIn
+  from
+    opacity: 0
+  to
+    opacity: 1
+
+@keyframes scaleUp
+  from
+    transform: scale(.92)
+    opacity: 0.6
+  to
+    transform: scale(1)
+    opacity: 1
+/* ===== MAPA DEL SITIO ===== */
+.sitemap-section
+  margin-top: 3rem
+  padding: 2rem
+  text-align: center
+
+.sitemap-title
+  font-size: 1.6rem
+  font-weight: 700
+  margin-bottom: 1rem
+
+.sitemap-list
+  list-style: none
+  padding: 0
+  font-size: 1.1rem
+  line-height: 2rem
+  color: #333
+  opacity: .85
+
+
+/* ===== RESPONSIVE PARA CELULARES ===== */
+@media (max-width: 520px)
+
+  /* Header CORREGIDO */
+  .home-header
+    padding: 1rem
+    flex-direction: row
+    justify-content: space-between
+    align-items: center
+
+  .logo
+    height: 48px
+
+  .navbar
+    gap: 1rem
+    flex-wrap: wrap
+    justify-content: center
+
+  .navbar a
+    font-size: .85rem
+
+  /* MAIN */
+  .home-main
+    padding: 2rem 1rem
+
+  .main-title
+    font-size: 2rem
+    padding: 0 1rem
+    line-height: 1.2
+
+  .main-subtitle
+    font-size: .95rem
+    padding: 0 1rem
+
+  /* ACCIONES */
+  .actions
+    flex-direction: column
+    gap: .8rem
+
+  .create-btn,
+  .join-btn,
+  .room-input
+    width: 100%
+    max-width: 320px
+    font-size: 1rem
+
+  .room-input
+    text-align: center
+
+  /* FOOTER */
+  .footer-columns
+    flex-direction: column
+    gap: 1.5rem
+    text-align: center
+
+  .footer-columns div p
+    font-size: .95rem
+
+  /* MODAL */
+  .modal
+    width: 92%
+    padding: 1.2rem
+
+  .code-box
+    flex-direction: column
+    gap: .6rem
+
+  .code
+    font-size: 1.15rem
+
+

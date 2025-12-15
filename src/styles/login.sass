@@ -1,0 +1,137 @@
+$red: #ff4d4d
+$white: #ffffff
+$gray: #444
+$border: #dcdcdc
+
+.login-container
+  display: flex
+  justify-content: center
+  align-items: center
+  height: 100vh
+  background: $red
+
+.login-card
+  background: $white
+  padding: 2rem
+  min-width: 360px
+  border-radius: 14px
+  text-align: center
+  box-shadow: 0 6px 16px rgba(0,0,0,.20)
+
+.login-logo
+  width: 180px
+  margin-bottom: 1rem
+
+.login-title
+  margin-bottom: 1.5rem
+  color: $gray
+  font-weight: bold
+  font-size: 1.4rem
+
+.login-form
+  display: flex
+  flex-direction: column
+  gap: 1rem
+
+.login-container label
+  text-align: left
+  font-size: .9rem
+  color: $gray
+
+.login-container input
+  padding: .7rem
+  border-radius: 8px
+  border: 1px solid $border
+  font-size: 1rem
+  transition: border .2s
+
+  &:focus
+    border-color: $red
+    outline: none
+
+.login-button
+  background: $red
+  color: $white
+  padding: .8rem
+  border: none
+  border-radius: 8px
+  cursor: pointer
+  font-weight: bold
+  transition: .2s
+
+  &:hover
+    background: darken($red, 12%)
+
+.ressetpasword-link
+  margin-top: -5px
+  color: #4c4cff
+  cursor: pointer
+  text-decoration: underline
+  font-size: .9rem
+  text-align: center
+
+.divider
+  margin: 1.2rem 0
+  font-size: .9rem
+  color: #666
+  position: relative
+
+  &:before, &:after
+    content: ""
+    position: absolute
+    top: 50%
+    width: 40%
+    height: 1px
+    background: #ccc
+
+  &:before
+    left: 0
+
+  &:after
+    right: 0
+
+/* =====================================================
+   CENTRAR SOLO BOTONES DE GOOGLE Y GITHUB
+   ===================================================== */
+.social-login
+  display: flex
+  flex-direction: column
+  align-items: center     // <-- Esto los centra horizontalmente
+  justify-content: center
+  gap: .8rem
+  margin-top: 1.2rem
+
+.social-btn
+  display: flex
+  align-items: center
+  justify-content: center
+  gap: .6rem
+  width: 80%               // <-- Los hace delgados y centrados
+  padding: .75rem
+  border-radius: 8px
+  font-weight: 600
+  cursor: pointer
+  border: 1px solid $border
+  background: #fff
+  transition: .2s
+
+  img
+    width: 20px
+
+  &:hover
+    background: #f3f3f3
+
+.google-btn
+  border-color: #d4d4d4
+
+.github-btn
+  border-color: #ccc
+
+.login-footer
+  font-size: .9rem
+  margin-top: .5rem
+
+  a
+    color: $red
+    font-weight: bold
+    text-decoration: none

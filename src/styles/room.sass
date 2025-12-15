@@ -1,0 +1,340 @@
+.room
+  display: grid
+  grid-template-columns: 1fr 320px
+  height: 100vh
+  background: #000
+  position: relative
+  color: #fff
+  overflow: hidden
+
+// ─────────────────────────────
+// LEFT SIDE
+// ─────────────────────────────
+.room__main
+  display: flex
+  flex-direction: column
+  padding: 16px
+  min-height: 0
+  position: relative
+
+.room__title
+  font-size: 1.4rem
+  margin-bottom: 12px
+  font-weight: 600
+
+// ─────────────────────────────
+// VIDEO PRINCIPAL
+// ─────────────────────────────
+.room__video-grid
+  flex: 1
+  background: #000
+  border-radius: 8px
+  overflow-x: hidden
+  overflow-y: auto
+  display: grid
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))
+  gap: 12px
+  align-items: center
+  justify-items: center
+  max-height: calc(100vh - 160px)
+
+.room__video-self,
+.room__video-user
+  width: 100%
+  aspect-ratio: 16 / 9
+  max-width: 100%
+  object-fit: cover
+  border-radius: 12px
+  background: #000
+
+@media (max-width: 768px)
+  .room__video-grid
+    grid-template-columns: 1fr
+    gap: 8px
+    padding: 4px
+
+
+
+// ─────────────────────────────
+// CONTROLS
+// ─────────────────────────────
+.room__controls
+  height: 72px
+  min-height: 72px
+  display: flex
+  gap: 12px
+  justify-content: center
+  align-items: center
+  padding: 12px
+  background: #000
+  z-index: 10
+
+.room__btn
+  background: #222
+  border: none
+  color: #fff
+  padding: 10px 16px
+  font-size: .9rem
+  border-radius: 8px
+  cursor: pointer
+  display: flex
+  align-items: center
+  justify-content: center
+  transition: background .15s ease, transform .15s ease
+
+  &:hover
+    background: #333
+    transform: translateY(-1px)
+
+.room__btn--hangup
+  background: #d62828 !important
+
+  &:hover
+    background: #b71f1f !important
+
+// ─────────────────────────────
+// PARTICIPANTS GRID (RIGHT)
+// ─────────────────────────────
+.room__grid
+  display: grid
+  grid-template-columns: repeat(auto-fill, 110px)
+  justify-content: center
+  gap: 20px
+  padding: 18px
+  background: #000
+  overflow-y: auto
+  height: 100%
+  border-left: 1px solid #111
+
+.room__grid::-webkit-scrollbar
+  width: 6px
+
+.room__grid::-webkit-scrollbar-thumb
+  background: #4c2bc9
+  border-radius: 6px
+
+.room__grid-item
+  background: #0d0d0d
+  border-radius: 12px
+  display: flex
+  flex-direction: column
+  justify-content: center
+  align-items: center
+  padding: 8px
+  border: 1px solid #1b1b1b
+  transition: .2s ease
+  width: 110px
+  height: 140px
+  position: relative
+  overflow: hidden
+
+  &:hover
+    border-color: #4c2bc9
+    box-shadow: 0 0 12px rgba(76,43,201,0.25)
+
+  &.is-speaking
+    border-color: #7d5bff
+    box-shadow: 0 0 16px rgba(125,91,255,0.65)
+
+// 👇 VIDEO SUPERPUESTO (NO EMPUJA NADA)
+.room__grid-video
+  position: absolute
+  inset: 0
+  width: 100%
+  height: 100%
+  object-fit: cover
+  border-radius: 12px
+  background: #000
+  z-index: 1
+  pointer-events: none
+
+// ─────────────────────────────
+// AVATAR
+// ─────────────────────────────
+.room__small-avatar
+  width: 48px
+  height: 48px
+  background: #4c2bc9
+  border-radius: 50%
+  display: flex
+  align-items: center
+  justify-content: center
+  font-size: 18px
+  font-weight: bold
+  color: #fff
+  margin-bottom: 8px
+  box-shadow: 0 0 8px rgba(76,43,201,0.35)
+  transition: .2s ease
+  position: relative
+  z-index: 2
+
+.room__name-tag
+  position: absolute
+  bottom: 6px
+  left: 6px
+  background: rgba(0,0,0,.6)
+  padding: 2px 6px
+  font-size: .7rem
+  border-radius: 4px
+  z-index: 2
+
+// 👇 OCULTA AVATAR CUANDO HAY VIDEO (OPCIONAL)
+.room__grid-item.has-video .room__small-avatar
+  opacity: 0
+
+// ─────────────────────────────
+// FLOATING CHAT BUTTON
+// ─────────────────────────────
+.room__chat-button
+  position: absolute
+  bottom: 20px
+  right: 20px
+  width: 52px
+  height: 52px
+  background: #4c2bc9
+  border-radius: 50%
+  border: none
+  cursor: pointer
+  display: flex
+  align-items: center
+  justify-content: center
+  z-index: 30
+  transition: background .2s ease, transform .15s ease
+
+  img
+    width: 28px
+    height: 28px
+
+  &:hover
+    background: #6140e6
+    transform: scale(1.05)
+
+// ─────────────────────────────
+// CHAT PANEL (DESKTOP)
+// ─────────────────────────────
+.room__chat-panel
+  position: absolute
+  top: 0
+  right: 0
+  width: 320px
+  height: 100%
+  background: #0d0d0d
+  border-left: 1px solid #222
+  display: flex
+  flex-direction: column
+  padding: 12px
+  z-index: 50
+  animation: slideIn .25s ease-out
+  max-height: 100dvh
+
+.room__chat-messages
+  flex: 1
+  overflow-y: auto
+  padding-right: 4px
+
+  p
+    background: #1a1a1a
+    padding: 8px 10px
+    border-radius: 6px
+    margin-bottom: 8px
+    font-size: .9rem
+
+    strong
+      color: #7d5bff
+
+.room__chat-input
+  display: flex
+  gap: 8px
+  margin-top: 12px
+
+  input
+    flex: 1
+    background: #111
+    border: 1px solid #333
+    border-radius: 6px
+    padding: 8px 10px
+    color: white
+
+  button
+    background: #4c2bc9
+    border: none
+    padding: 8px 14px
+    border-radius: 6px
+    cursor: pointer
+    color: white
+    font-weight: bold
+
+    &:hover
+      background: #6a4df4
+
+.chat-overlay
+  position: fixed
+  inset: 0
+  background: rgba(0,0,0,.45)
+  z-index: 40
+
+@keyframes slideIn
+  from
+    transform: translateX(100%)
+  to
+    transform: translateX(0)
+
+@keyframes slideUp
+  from
+    transform: translateY(100%)
+  to
+    transform: translateY(0)
+
+// ─────────────────────────────
+// RESPONSIVE
+// ─────────────────────────────
+@media (max-width: 900px)
+  .room
+    grid-template-columns: 1fr
+
+  .room__grid
+    display: none
+
+@media (max-width: 768px)
+  .room__chat-panel
+    top: auto
+    bottom: 0
+    left: 0
+    right: 0
+    width: 100%
+    height: 45vh
+    border-left: none
+    border-top: 1px solid #222
+    border-radius: 16px 16px 0 0
+    animation: slideUp .25s ease-out
+
+  .room__grid
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr))
+    gap: 8px
+    padding: 8px
+    overflow-y: auto
+    height: 35vh
+
+.room__empty-video
+  width: 100%
+  height: 100%
+  display: flex
+  align-items: center
+  justify-content: center
+  background: #000
+
+.initial-badge.big
+  width: 120px
+  height: 120px
+  font-size: 48px
+
+.room__video-user.is-focused
+  grid-column: 1 / -1
+  grid-row: 1 / -1
+  width: 100%
+  height: 100%
+  z-index: 10
+
+.room__video-user
+  pointer-events: none

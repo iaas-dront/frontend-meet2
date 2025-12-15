@@ -1,0 +1,116 @@
+$red: #ff4d4d
+$bg: #f6eded
+
+/* FORZAR QUE TODO QUEDE DEBAJO DEL MENÚ */
+.about-container,
+.about-header,
+.about-main,
+.about-footer,
+.sidebar-btn
+  position: relative
+  z-index: 1 !important
+
+.about-container
+  background: $bg
+  min-height: 100vh
+  display: flex
+  flex-direction: column
+
+/* HEADER */
+.about-header
+  display: flex
+  justify-content: space-between
+  align-items: center
+  padding: 1rem 2rem
+
+.header-left
+  display: flex
+  align-items: center
+  gap: 1rem
+
+.hamburger-btn
+  font-size: 1.6rem
+  background: none
+  border: none
+  cursor: pointer
+
+.logo
+  height: 65px
+
+.navbar
+  display: flex
+  gap: 2rem
+
+  a
+    text-decoration: none
+    color: #000
+    font-size: .95rem
+
+/* SIDEBAR */
+.sidebar-btn
+  margin-left: 1.5rem
+  margin-top: .5rem
+  background: $red
+  color: white
+  padding: .6rem 1rem
+  width: 160px
+  text-align: center
+  border-radius: 8px
+  font-weight: bold
+
+/* MAIN CONTENT */
+.about-main
+  display: flex
+  justify-content: center
+  padding: 2rem
+
+.about-card
+  background: #fff
+  padding: 2rem
+  max-width: 850px
+  border-radius: 10px
+  border-left: 6px solid $red
+
+  h2
+    margin-bottom: 1.2rem
+
+  p
+    line-height: 1.5
+    margin-bottom: 1rem
+    color: #444
+
+/* FOOTER */
+.about-footer
+  margin-top: 3rem
+  padding: 2rem 3rem
+
+.footer-divider
+  width: 100%
+  height: 1px
+  background: #ccc
+  margin-bottom: 1.5rem
+  margin-top: 1.5rem
+
+.about-footer h3
+  margin-bottom: 1rem
+
+.footer-columns
+  display: flex
+  justify-content: space-between
+  gap: 2rem
+
+  div p
+    margin: .4rem 0
+
+/* RESPONSIVE */
+@media (max-width: 900px)
+  .footer-columns
+    flex-direction: column
+    gap: 1.5rem
+
+@media (max-width: 700px)
+  .about-card
+    padding: 1.5rem
+
+  .navbar
+    display: none

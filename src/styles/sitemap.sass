@@ -1,0 +1,153 @@
+$red: #ff4d4d
+$purple: #5b3cc4
+$bg: #f6eded
+$muted: #777
+
+.sitemap-page
+  background: $bg
+  min-height: 100vh
+  display: flex
+  flex-direction: column
+
+/* HEADER igual a Home */
+.sitemap-header
+  display: flex
+  justify-content: space-between
+  align-items: center
+  padding: 1rem 2rem
+
+.header-left
+  display: flex
+  align-items: center
+  gap: 1rem
+
+.hamburger-btn
+  font-size: 1.6rem
+  background: none
+  border: none
+  cursor: pointer
+
+.logo
+  height: 65px
+
+.navbar
+  display: flex
+  gap: 2rem
+
+.nav-btn
+  background: none
+  border: none
+  font-size: .95rem
+  cursor: pointer
+
+/* MAIN */
+.sitemap-main
+  padding: 2rem
+  text-align: center
+
+.sitemap-title
+  font-size: 2.4rem
+  font-weight: 700
+  margin-bottom: .5rem
+
+.sitemap-sub
+  color: $muted
+  margin-bottom: 2rem
+
+/* TREE WRAPPER */
+.sitemap-tree-wrapper
+  display: flex
+  flex-direction: column
+  align-items: center
+  gap: 2rem
+
+/* NODES */
+.node
+  background: white
+  padding: 1rem 1.3rem
+  min-width: 220px
+  border-radius: 16px
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08)
+  cursor: pointer
+  border-left: 5px solid $purple
+  transition: transform .15s ease, box-shadow .15s ease
+
+  &:hover
+    transform: translateY(-4px)
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12)
+
+.node-title
+  font-size: 1.1rem
+  font-weight: 700
+
+.node-sub
+  font-size: .8rem
+  color: $muted
+
+/* ROOT NODE */
+.root
+  border-left: 5px solid $red
+  padding: 1.2rem 1.5rem
+  font-size: 1.2rem
+
+/* ROWS */
+.tree-row
+  display: flex
+  gap: 1.5rem
+  flex-wrap: wrap
+  justify-content: center
+
+.column
+  min-width: 180px
+
+.small
+  min-width: 160px
+  padding: .8rem 1rem
+
+.tiny
+  min-width: 150px
+  padding: .7rem .9rem
+
+/* BRANCH */
+.tree-branch
+  display: flex
+  flex-direction: column
+  align-items: center
+
+.branch
+  border-left-color: $purple
+
+.branch-children
+  margin-top: 1rem
+  display: flex
+  gap: 1rem
+  flex-wrap: wrap
+  justify-content: center
+
+.meeting
+  border-left-color: $red
+  background: #fff5f5
+
+/* BUTTONS */
+.sitemap-actions
+  margin-top: 2rem
+  display: flex
+  gap: 1rem
+  justify-content: center
+
+.btn
+  background: $red
+  border: none
+  color: white
+  padding: .7rem 1.3rem
+  border-radius: 10px
+  font-weight: 700
+  cursor: pointer
+  transition: transform .12s ease, box-shadow .12s ease
+
+  &:hover
+    transform: translateY(-2px)
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1)
+
+.secondary
+  background: $purple
