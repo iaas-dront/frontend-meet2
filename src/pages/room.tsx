@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 
@@ -6,14 +6,13 @@ import "../styles/room.sass";
 
 // Socket normal
 import { socket } from "../services/socket";
-// Socket AI
+// Socket IA
 import { aiSocket } from "../services/aiSocket";
 
 // Hooks
 import { useVoiceChat } from "../hooks/useVoiceChat";
 import { useVideoChat } from "../hooks/useVideoChat";
 
-// Icons
 import {
   Camera,
   CameraOut,
@@ -40,34 +39,30 @@ export default function Room() {
   const auth = getAuth();
   const user = auth.currentUser;
 
-  // Username estable (evita errores de build)
- // Username estable (evita errores de build)
-const username =
-  user?.displayName ||
-  user?.email?.split("@")[0] ||
-  `User-${Math.floor(Math.random() * 9999)}`;
-
- 
-
+  const username =
+    user?.displayName ||
+    user?.email?.split("@")[0] ||
+    `User-${Math.floor(Math.random() * 9999)}`;
 
   /* ================= CHAT ================= */
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
+  const chatRef = useRef<HTMLDivElement | null>(null);
 
-  /* ================= AI SUMMARY ================= */
+  /* ================= IA ================= */
   const [summary, setSummary] = useState<string | null>(null);
 
-  /* ================= UI STATES ================= */
+  /* ================= FOCUS VIDEO ================= */
+  const [focusedPeer, setFocusedPeer] = useState<string | null>(null);
+
+  /* ================= CONTROLS ================= */
   const [muted, setMuted] = useState(false);
   const [camera, setCamera] = useState(false);
   const [hand, setHand] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [cameraConfirmed, setCameraConfirmed] = useState(false);
   const [micConfirmed, setMicConfirmed] = useState(false);
-
-  /* ================= FOCUS ================= */
-  const [focusedPeer, setFocusedPeer] = useState<string | null>(null);
 
   /* ================= VOICE + VIDEO ================= */
   const {
@@ -102,7 +97,7 @@ const username =
     };
   }, [id, username]);
 
-  /* ================= AI JOIN ================= */
+  /* ================= IA JOIN ================= */
   useEffect(() => {
     if (!username) return;
 
@@ -112,7 +107,6 @@ const username =
     });
 
     aiSocket.on("ai:summary", (data: string) => {
-      console.log("📄 Resumen recibido:", data);
       setSummary(data);
     });
 
@@ -132,11 +126,8 @@ const username =
       time: Date.now(),
     });
 
-    // Enviar también a la IA
-    aiSocket.emit("ai:chat", {
-      username,
-      message,
-    });
+    // 👉 IA también recibe el chat
+    aiSocket.emit("ai:chat", { username, message });
 
     setMessage("");
   };
@@ -147,7 +138,7 @@ const username =
     audioStream.getAudioTracks().forEach((t) => (t.enabled = !muted));
   }, [audioStream, muted]);
 
-  /* ================= MAIN VIDEO ================= */
+  /* ================= VIDEO PRINCIPAL ================= */
   useEffect(() => {
     if (!myMainVideoRef.current) return;
 
@@ -160,13 +151,14 @@ const username =
     if (remote) myMainVideoRef.current.srcObject = remote;
   }, [focusedPeer, videoStream, remoteStreams]);
 
-  /* ================= GRID VIDEOS ================= */
+  /* ================= MI VIDEO GRID ================= */
   useEffect(() => {
     if (videoStream && myGridVideoRef.current) {
       myGridVideoRef.current.srcObject = videoStream;
     }
   }, [videoStream]);
 
+  /* ================= REMOTE VIDEOS ================= */
   useEffect(() => {
     Object.entries(remoteStreams).forEach(([peerId, stream]) => {
       const video = remoteVideoRefs.current[peerId];
@@ -176,7 +168,7 @@ const username =
     });
   }, [remoteStreams]);
 
-  /* ================= CAMERA ================= */
+  /* ================= TOGGLE CAMERA ================= */
   useEffect(() => {
     if (!videoStream) return;
     videoStream.getVideoTracks().forEach((t) => (t.enabled = camera));
@@ -194,7 +186,7 @@ const username =
       <section className="room__main">
         <h2 className="room__title">Meeting: {id}</h2>
 
-        {/* ===== VIDEO PRINCIPAL ===== */}
+        {/* ===== VIDEO ===== */}
         <div className="room__video-grid">
           {videoStream && (
             <video
@@ -203,63 +195,33 @@ const username =
               playsInline
               muted
               onClick={() => setFocusedPeer(null)}
-              className={`room__video-self ${
-                focusedPeer ? "is-background" : ""
-              }`}
+              className="room__video-self"
               style={{ display: camera ? "block" : "none" }}
             />
           )}
 
-          {Object.entries(remoteStreams).map(([peerId]) =>
-            focusedPeer && focusedPeer !== peerId ? null : (
-              <video
-                key={peerId}
-                ref={(el) => {
-                  remoteVideoRefs.current[peerId] = el;
-                }}
-                autoPlay
-                playsInline
-                className={`room__video-user ${
-                  focusedPeer === peerId ? "is-focused" : ""
-                }`}
-              />
-            )
-          )}
+          {Object.entries(remoteStreams).map(([peerId]) => (
+            <video
+              key={peerId}
+              ref={(el) => {
+  remoteVideoRefs.current[peerId] = el;
+}}
+
+              autoPlay
+              playsInline
+              className="room__video-user"
+              onClick={() => setFocusedPeer(peerId)}
+            />
+          ))}
         </div>
 
         {/* ===== CONTROLES ===== */}
         <div className="room__controls">
-          <button
-            className="room__btn"
-            onClick={() => {
-              if (!audioStream) return;
-              const next = !muted;
-
-              if (!micConfirmed && !next) {
-                if (!window.confirm("¿Encender micrófono?")) return;
-                setMicConfirmed(true);
-              }
-
-              setMuted(next);
-            }}
-          >
+          <button className="room__btn" onClick={() => setMuted(!muted)}>
             {muted ? <MicOff /> : <Mic />}
           </button>
 
-          <button
-            className="room__btn"
-            onClick={() => {
-              if (!videoStream) return;
-              const next = !camera;
-
-              if (!cameraConfirmed && next) {
-                if (!window.confirm("¿Encender cámara?")) return;
-                setCameraConfirmed(true);
-              }
-
-              setCamera(next);
-            }}
-          >
+          <button className="room__btn" onClick={() => setCamera(!camera)}>
             {camera ? <Camera /> : <CameraOut />}
           </button>
 
@@ -274,7 +236,7 @@ const username =
           <button
             className="room__btn room__btn--hangup"
             onClick={() => {
-              aiSocket.emit("ai:end-meeting"); // 👈 genera informe
+              aiSocket.emit("ai:end-meeting"); // 🔥 IA
               stopAllMedia();
               endCall();
               navigate("/home");
@@ -285,7 +247,55 @@ const username =
         </div>
       </section>
 
-      {/* ===== AI SUMMARY MODAL ===== */}
+      {/* ===== PARTICIPANTES ===== */}
+      <aside className="room__grid">
+        {participants.map((p) => (
+          <div
+            key={p.peerId}
+            className={`room__grid-item ${p.talking ? "is-speaking" : ""}`}
+          >
+            <div className="room__small-avatar">
+              {p.username.charAt(0).toUpperCase()}
+            </div>
+            <div className="room__name-tag">{p.username}</div>
+          </div>
+        ))}
+      </aside>
+
+      {/* ===== CHAT ===== */}
+      <button
+        className="room__chat-button"
+        onClick={() => setChatOpen(!chatOpen)}
+      >
+        💬
+      </button>
+
+      {chatOpen && (
+        <>
+          <div className="chat-overlay" onClick={() => setChatOpen(false)} />
+          <div className="room__chat-panel" ref={chatRef}>
+            <div className="room__chat-messages">
+              {messages.map((m, i) => (
+                <p key={i}>
+                  <strong>{m.sender}:</strong> {m.message}
+                </p>
+              ))}
+            </div>
+
+            <div className="room__chat-input">
+              <input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Mensaje..."
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+              <button onClick={sendMessage}>Enviar</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ===== SUMMARY IA ===== */}
       {summary && (
         <div className="summary-modal">
           <h2>📄 Resumen de la reunión</h2>
@@ -296,4 +306,3 @@ const username =
     </main>
   );
 }
-
