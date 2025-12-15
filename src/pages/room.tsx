@@ -41,13 +41,14 @@ export default function Room() {
   const user = auth.currentUser;
 
   // Username estable (evita errores de build)
-  const username =
+ // Username estable (evita errores de build)
+const username =
   user?.displayName ||
   user?.email?.split("@")[0] ||
   `User-${Math.floor(Math.random() * 9999)}`;
 
-    );
-  }, [user]);
+ 
+
 
   /* ================= CHAT ================= */
   const [chatOpen, setChatOpen] = useState(false);
