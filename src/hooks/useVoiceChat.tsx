@@ -1,281 +1,308 @@
-import { useEffect, useRef, useState } from "react";
-import Peer from "peerjs";
-import { voiceSocket } from "../services/voiceSocket";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 
-export interface Participant {
-  peerId: string;
-  username: string;
-  talking?: boolean;
+import "../styles/room.sass";
+
+// Socket normal
+import { socket } from "../services/socket";
+// Socket IA
+import { aiSocket } from "../services/aiSocket";
+
+// Hooks
+import { useVoiceChat } from "../hooks/useVoiceChat";
+import { useVideoChat } from "../hooks/useVideoChat";
+
+import {
+  Camera,
+  CameraOut,
+  Share,
+  Sharex,
+  Hand,
+  Mic,
+  MicOff,
+} from "../icons";
+
+/* ================= TYPES ================= */
+interface ChatMessage {
+  sender: string;
+  message: string;
+  time?: number;
 }
 
-export function useVoiceChat(roomId: string, username: string) {
-  const [myStream, setMyStream] = useState<MediaStream | null>(null);
-  const [isTalking, setIsTalking] = useState(false);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+/* ================= COMPONENT ================= */
+export default function Room() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
-  const peers = useRef<{ [key: string]: any }>({});
-  const peerRef = useRef<any>(null);
+  /* ================= USER ================= */
+  const auth = getAuth();
+  const user = auth.currentUser;
 
-  useEffect(() => {
-    let cancelled = false;
-    let socketReady = false;
+  const username =
+    user?.displayName ||
+    user?.email?.split("@")[0] ||
+    `User-${Math.floor(Math.random() * 9999)}`;
 
-    // Ensure socket is connected and set a flag when it is
-    if (!voiceSocket.connected) {
-      voiceSocket.connect();
-    }
-    const onSocketConnect = () => {
-      socketReady = true;
-      console.debug("[voiceSocket] connected (useVoiceChat)");
-    };
-    voiceSocket.on("connect", onSocketConnect);
+  /* ================= CHAT ================= */
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [message, setMessage] = useState("");
+  const chatRef = useRef<HTMLDivElement | null>(null);
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      if (cancelled) return;
+  /* ================= IA ================= */
+  const [summary, setSummary] = useState<string | null>(null);
 
-      setMyStream(stream);
+  /* ================= FOCUS VIDEO ================= */
+  const [focusedPeer, setFocusedPeer] = useState<string | null>(null);
 
-      /* --- Detect my voice --- */
-      const ctx = new AudioContext();
-      const analyser = ctx.createAnalyser();
-      const src = ctx.createMediaStreamSource(stream);
-      analyser.fftSize = 512;
-      src.connect(analyser);
+  /* ================= CONTROLS ================= */
+  const [muted, setMuted] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [hand, setHand] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [cameraConfirmed, setCameraConfirmed] = useState(false);
+  const [micConfirmed, setMicConfirmed] = useState(false);
 
-      const data = new Uint8Array(analyser.frequencyBinCount);
-
-      const detectMyVoice = () => {
-        analyser.getByteFrequencyData(data);
-        const volume = data.reduce((a, b) => a + b, 0) / data.length;
-        setIsTalking(volume > 25);
-        requestAnimationFrame(detectMyVoice);
-      };
-
-      detectMyVoice();
-
-      /* -------------------- Initialize PeerJS -------------------- */
-      if (!peerRef.current) {
-        const peer = new Peer({
-          host: import.meta.env.VITE_PEER_HOST,
-          port: Number(import.meta.env.VITE_PEER_PORT),
-          secure: import.meta.env.VITE_PEER_SECURE === "true",
-          path: import.meta.env.VITE_PEER_PATH,
-          config: {
-            iceServers: [
-              { urls: [import.meta.env.VITE_STUN] },
-              { urls: [import.meta.env.VITE_ICE] },
-            ],
-          },
-        });
-
-        peerRef.current = peer;
-
-        // Wait for peer open. But only emit join when socket is ready.
-        peer.on("open", (peerId) => {
-          console.debug("[peer] open", peerId);
-          // If socket is already connected, emit immediately; otherwise wait for socket connect
-          if (socketReady || voiceSocket.connected) {
-            voiceSocket.emit("join-voice-room", {
-              roomId,
-              peerId,
-              username,
-            });
-          } else {
-            // CHK: wait for socket to connect before emitting join
-            const tryEmit = () => {
-              if (voiceSocket.connected) {
-                voiceSocket.emit("join-voice-room", {
-                  roomId,
-                  peerId,
-                  username,
-                });
-                voiceSocket.off("connect", tryEmit);
-              }
-            };
-            voiceSocket.on("connect", tryEmit);
-            // safety: after 2s, if still not connected, try emit anyway (prevents stuck)
-            setTimeout(() => {
-              if (peerRef.current && !voiceSocket.connected) {
-                console.warn("[useVoiceChat] socket still not connected after 2s, emitting join anyway");
-                voiceSocket.emit("join-voice-room", {
-                  roomId,
-                  peerId,
-                  username,
-                });
-              }
-            }, 2000);
-          }
-        });
-
-        /* --- Incoming call --- */
-        peer.on("call", (call) => {
-          call.answer(stream);
-
-          call.on("stream", (userStream) => {
-            addAudio(userStream, call.peer);
-          });
-
-          peers.current[call.peer] = call;
-        });
-      }
-
-      /* -------------------- Socket events -------------------- */
-
-      // When we receive the full list of users in the room (sent only to the new user)
-      voiceSocket.on("voice-room-users", (users: Participant[]) => {
-        console.debug("[voice-room-users] received", users);
-        setParticipants(users);
-
-        // CHK: Actively try to call existing users (helps when the peerConnected event race happens)
-        // small delay to ensure peerRef and internal states are ready
-        setTimeout(() => {
-          if (!peerRef.current) return;
-          users.forEach((u) => {
-            if (u.peerId === peerRef.current.id) return;
-            // Avoid duplicate attempts if we already have a connection
-            if (!peers.current[u.peerId]) {
-              try {
-                connectToNewUser(u.peerId, stream);
-              } catch (err) {
-                console.warn("[useVoiceChat] connectToNewUser failed for", u.peerId, err);
-              }
-            }
-          });
-        }, 300); // 300ms is usually enough; increase if networks are flaky
-      });
-
-      const handleConnect = (data: Participant) => {
-        console.debug("[user-connected] ", data);
-        setParticipants((prev) => [...prev, data]);
-
-        // Give a slight delay to let the newly-connected peer finish its setup
-        setTimeout(() => connectToNewUser(data.peerId, stream), 400);
-      };
-
-      const handleDisconnect = (peerId: string) => {
-        console.debug("[user-disconnected]", peerId);
-        setParticipants((prev) => prev.filter((p) => p.peerId !== peerId));
-        if (peers.current[peerId]) peers.current[peerId].close();
-        delete peers.current[peerId];
-      };
-
-      voiceSocket.on("user-connected", handleConnect);
-      voiceSocket.on("user-disconnected", handleDisconnect);
-
-      /* -------------------- CLEANUP -------------------- */
-      return () => {
-        cancelled = true;
-
-        voiceSocket.off("connect", onSocketConnect);
-        voiceSocket.off("user-connected", handleConnect);
-        voiceSocket.off("user-disconnected", handleDisconnect);
-        voiceSocket.off("voice-room-users");
-
-        Object.values(peers.current).forEach((c) => c.close());
-        peers.current = {};
-
-        if (peerRef.current) {
-          peerRef.current.destroy();
-          peerRef.current = null;
-        }
-
-        stream.getTracks().forEach((t) => t.stop());
-      };
-    });
-  }, [roomId, username]); // <-- add deps to be safer if those change
-
-  /* -------------------- CONNECT TO NEW USER -------------------- */
-  const connectToNewUser = (peerId: string, streamOverride?: MediaStream) => {
-    const stream = streamOverride || myStream;
-    if (!stream || !peerRef.current) return;
-
-    // If we already have this call active, ignore
-    if (peers.current[peerId]) return;
-
-    try {
-      const call = peerRef.current.call(peerId, stream);
-
-      call.on("stream", (userStream: MediaStream) => {
-        addAudio(userStream, call.peer);
-      });
-
-      call.on("close", () => {
-        // cleanup if remote closes
-        if (peers.current[peerId]) delete peers.current[peerId];
-      });
-
-      peers.current[peerId] = call;
-    } catch (err) {
-      console.warn("[useVoiceChat] error calling peer", peerId, err);
-    }
-  };
-
-  /* -------------------- ADD AUDIO STREAM -------------------- */
-  /* -------------------- ADD AUDIO STREAM -------------------- */
-const addAudio = (stream: MediaStream, peerId?: string) => {
-  const audio = document.createElement("audio");
-  audio.srcObject = stream;
-  audio.autoplay = true;
-
-  // FIX: soporte para móviles (Chrome / Safari)
-  (audio as any).playsInline = true;
-  audio.setAttribute("playsinline", "true");
-  audio.setAttribute("webkit-playsinline", "true");
-  audio.muted = false;
-
-  // Necesario para permitir que Chrome Android lo reproduzca sin interacción
-  audio.addEventListener("canplay", () => {
-    audio.play().catch((e) => console.warn("Autoplay bloqueado:", e));
-  });
-
-  if (!peerId) return;
-
-  const ctx = new AudioContext();
-  const analyser = ctx.createAnalyser();
-  const src = ctx.createMediaStreamSource(stream);
-
-  analyser.fftSize = 256;
-  src.connect(analyser);
-
-  const data = new Uint8Array(analyser.frequencyBinCount);
-
-  const detectVoice = () => {
-    analyser.getByteFrequencyData(data);
-    const volume = data.reduce((a, b) => a + b, 0) / data.length;
-
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.peerId === peerId ? { ...p, talking: volume > 20 } : p
-      )
-    );
-
-    requestAnimationFrame(detectVoice);
-  };
-
-  detectVoice();
-};
-
-  /* -------------------- END CALL -------------------- */
-  const endCall = () => {
-    if (myStream) myStream.getTracks().forEach((t) => t.stop());
-
-    Object.values(peers.current).forEach((c) => c.close());
-    peers.current = {};
-
-    if (peerRef.current) {
-      peerRef.current.destroy();
-      peerRef.current = null;
-    }
-
-    if (voiceSocket.connected) voiceSocket.disconnect();
-  };
-
-  return {
-    myStream,
+  /* ================= VOICE + VIDEO ================= */
+  const {
+    myStream: audioStream,
     isTalking,
     participants,
-    connectToNewUser,
     endCall,
-    peerRef,
+    peerRef: voicePeer,
+  } = useVoiceChat(id!, username);
+
+  const { myStream: videoStream, remoteStreams } = useVideoChat(id!);
+
+  /* ================= VIDEO REFS ================= */
+  const myMainVideoRef = useRef<HTMLVideoElement | null>(null);
+  const myGridVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+
+  /* ================= SOCKET CHAT ================= */
+  useEffect(() => {
+    if (!id) return;
+
+    socket.emit("join_room", id, username);
+
+    const handler = (data: ChatMessage) => {
+      setMessages((prev) => [...prev, data]);
+    };
+
+    socket.on("receive_message", handler);
+
+    return () => {
+      socket.off("receive_message", handler);
+    };
+  }, [id, username]);
+
+  /* ================= IA JOIN ================= */
+  useEffect(() => {
+    if (!username) return;
+
+    aiSocket.emit("ai:join", {
+      username,
+      email: user?.email || "no-email@test.com",
+    });
+
+    aiSocket.on("ai:summary", (data: string) => {
+      setSummary(data);
+    });
+
+    return () => {
+      aiSocket.off("ai:summary");
+    };
+  }, [username, user]);
+
+  /* ================= SEND MESSAGE ================= */
+  const sendMessage = () => {
+    if (!message.trim() || !id) return;
+
+    socket.emit("send_message", {
+      roomId: id,
+      sender: username,
+      message,
+      time: Date.now(),
+    });
+
+    // 👉 IA también recibe el chat
+    aiSocket.emit("ai:chat", { username, message });
+
+    setMessage("");
   };
+
+  /* ================= AUDIO ================= */
+  useEffect(() => {
+    if (!audioStream) return;
+    audioStream.getAudioTracks().forEach((t) => (t.enabled = !muted));
+  }, [audioStream, muted]);
+
+  /* ================= VIDEO PRINCIPAL ================= */
+  useEffect(() => {
+    if (!myMainVideoRef.current) return;
+
+    if (!focusedPeer) {
+      myMainVideoRef.current.srcObject = videoStream ?? null;
+      return;
+    }
+
+    const remote = remoteStreams[focusedPeer];
+    if (remote) myMainVideoRef.current.srcObject = remote;
+  }, [focusedPeer, videoStream, remoteStreams]);
+
+  /* ================= MI VIDEO GRID ================= */
+  useEffect(() => {
+    if (videoStream && myGridVideoRef.current) {
+      myGridVideoRef.current.srcObject = videoStream;
+    }
+  }, [videoStream]);
+
+  /* ================= REMOTE VIDEOS ================= */
+  useEffect(() => {
+    Object.entries(remoteStreams).forEach(([peerId, stream]) => {
+      const video = remoteVideoRefs.current[peerId];
+      if (video && video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+    });
+  }, [remoteStreams]);
+
+  /* ================= TOGGLE CAMERA ================= */
+  useEffect(() => {
+    if (!videoStream) return;
+    videoStream.getVideoTracks().forEach((t) => (t.enabled = camera));
+  }, [camera, videoStream]);
+
+  /* ================= CLEANUP ================= */
+  const stopAllMedia = () => {
+    videoStream?.getTracks().forEach((t) => t.stop());
+    audioStream?.getTracks().forEach((t) => t.stop());
+  };
+
+  /* ================= UI ================= */
+  return (
+    <main className="room">
+      <section className="room__main">
+        <h2 className="room__title">Meeting: {id}</h2>
+
+        {/* ===== VIDEO ===== */}
+        <div className="room__video-grid">
+          {videoStream && (
+            <video
+              ref={myMainVideoRef}
+              autoPlay
+              playsInline
+              muted
+              onClick={() => setFocusedPeer(null)}
+              className="room__video-self"
+              style={{ display: camera ? "block" : "none" }}
+            />
+          )}
+
+          {Object.entries(remoteStreams).map(([peerId]) => (
+            <video
+              key={peerId}
+              ref={(el) => {
+  remoteVideoRefs.current[peerId] = el;
+}}
+
+              autoPlay
+              playsInline
+              className="room__video-user"
+              onClick={() => setFocusedPeer(peerId)}
+            />
+          ))}
+        </div>
+
+        {/* ===== CONTROLES ===== */}
+        <div className="room__controls">
+          <button className="room__btn" onClick={() => setMuted(!muted)}>
+            {muted ? <MicOff /> : <Mic />}
+          </button>
+
+          <button className="room__btn" onClick={() => setCamera(!camera)}>
+            {camera ? <Camera /> : <CameraOut />}
+          </button>
+
+          <button className="room__btn" onClick={() => setSharing(!sharing)}>
+            {sharing ? <Sharex /> : <Share />}
+          </button>
+
+          <button className="room__btn" onClick={() => setHand(!hand)}>
+            <Hand />
+          </button>
+
+          <button
+            className="room__btn room__btn--hangup"
+            onClick={() => {
+              aiSocket.emit("ai:end-meeting"); // 🔥 IA
+              stopAllMedia();
+              endCall();
+              navigate("/home");
+            }}
+          >
+            End
+          </button>
+        </div>
+      </section>
+
+      {/* ===== PARTICIPANTES ===== */}
+      <aside className="room__grid">
+        {participants.map((p) => (
+          <div
+            key={p.peerId}
+            className={`room__grid-item ${p.talking ? "is-speaking" : ""}`}
+          >
+            <div className="room__small-avatar">
+              {p.username.charAt(0).toUpperCase()}
+            </div>
+            <div className="room__name-tag">{p.username}</div>
+          </div>
+        ))}
+      </aside>
+
+      {/* ===== CHAT ===== */}
+      <button
+        className="room__chat-button"
+        onClick={() => setChatOpen(!chatOpen)}
+      >
+        💬
+      </button>
+
+      {chatOpen && (
+        <>
+          <div className="chat-overlay" onClick={() => setChatOpen(false)} />
+          <div className="room__chat-panel" ref={chatRef}>
+            <div className="room__chat-messages">
+              {messages.map((m, i) => (
+                <p key={i}>
+                  <strong>{m.sender}:</strong> {m.message}
+                </p>
+              ))}
+            </div>
+
+            <div className="room__chat-input">
+              <input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Mensaje..."
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+              <button onClick={sendMessage}>Enviar</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ===== SUMMARY IA ===== */}
+      {summary && (
+        <div className="summary-modal">
+          <h2>📄 Resumen de la reunión</h2>
+          <pre>{summary}</pre>
+          <button onClick={() => setSummary(null)}>Cerrar</button>
+        </div>
+      )}
+    </main>
+  );
 }
