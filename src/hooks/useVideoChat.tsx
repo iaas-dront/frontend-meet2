@@ -8,6 +8,8 @@ export function useVideoChat(roomId: string) {
 
   const peerRef = useRef<any>(null);
   const peers = useRef<{ [key: string]: any }>({});
+  const [remoteScreenStream, setRemoteScreenStream] =
+  useState<MediaStream | null>(null);
 
   // ------------------------------------------------
   // CREA UN STREAM FALSO (FAKE VIDEO TRACK)
@@ -80,18 +82,41 @@ export function useVideoChat(roomId: string) {
       // LLAMADAS ENTRANTES
       // ------------------------------------------------
       peer.on("call", (call) => {
-        call.answer(stream);
+  call.answer(stream);
 
-        call.on("stream", (remoteStream: MediaStream) => {
-          const id = call.peer;
-          setRemoteStreams((prev) => ({
-            ...prev,
-            [id]: remoteStream,
-          }));
-        });
+  call.on("stream", (remoteStream: MediaStream) => {
+    const videoTrack = remoteStream.getVideoTracks()[0];
 
-        peers.current[call.peer] = call;
-      });
+    const isScreen =
+      call.metadata?.type === "screen" ||
+      videoTrack?.label.toLowerCase().includes("screen") ||
+      videoTrack?.label.toLowerCase().includes("display");
+
+    if (isScreen) {
+      setRemoteScreenStream(remoteStream);
+      return;
+    }
+
+    // 🎥 cámara normal
+    setRemoteStreams((prev) => ({
+      ...prev,
+      [call.peer]: remoteStream,
+    }));
+  });
+
+  call.on("close", () => {
+    setRemoteStreams((prev) => {
+      const copy = { ...prev };
+      delete copy[call.peer];
+      return copy;
+    });
+
+    setRemoteScreenStream(null);
+  });
+
+  peers.current[call.peer] = call;
+});
+
 
       // ------------------------------------------------
       // NUEVO USUARIO
@@ -139,7 +164,10 @@ export function useVideoChat(roomId: string) {
     if (!peerRef.current) return;
     if (peers.current[peerId]) return;
 
-    const call = peerRef.current.call(peerId, stream);
+    const call = peerRef.current.call(peerId, stream, {
+  metadata: { type: "camera" },
+});
+
 
     call.on("stream", (remoteStream: MediaStream) => {
       const id = call.peer;
@@ -161,6 +189,13 @@ export function useVideoChat(roomId: string) {
     peers.current[peerId] = call;
   };
 
-  return { myStream, remoteStreams, peerRef };
+  return {
+  myStream,
+  remoteStreams,
+  remoteScreenStream, // 🔥
+  peerRef,
+};
+
+
 }
 
