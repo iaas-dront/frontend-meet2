@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getAuth } from "firebase/auth";
 
 import "../styles/room.sass";
 
-// Socket normal
+// Socket for chat messaging
 import { socket } from "../services/socket";
-// Socket IA
-import { aiSocket } from "../services/aiSocket";
 
-// Hooks
+// Custom hooks for voice and video functionality
 import { useVoiceChat } from "../hooks/useVoiceChat";
 import { useVideoChat } from "../hooks/useVideoChat";
 
+// Firebase authentication
+import { getAuth } from "firebase/auth";
+
+// UI icons
 import {
   Camera,
   CameraOut,
@@ -23,15 +24,15 @@ import {
   MicOff,
 } from "../icons";
 
-/* ================= TYPES ================= */
+// Chat message structure
 interface ChatMessage {
   sender: string;
   message: string;
   time?: number;
 }
 
-/* ================= COMPONENT ================= */
 export default function Room() {
+  // Room ID from URL params
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -39,6 +40,7 @@ export default function Room() {
   const auth = getAuth();
   const user = auth.currentUser;
 
+  // Resolve username from display name, email, or fallback
   const username =
     user?.displayName ||
     user?.email?.split("@")[0] ||
@@ -49,38 +51,12 @@ export default function Room() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
   const chatRef = useRef<HTMLDivElement | null>(null);
-
-  /* ================= IA ================= */
-  const [summary, setSummary] = useState<string | null>(null);
-
+  
   /* ================= FOCUS VIDEO ================= */
+  // Peer ID of the currently focused video
   const [focusedPeer, setFocusedPeer] = useState<string | null>(null);
 
-  /* ================= CONTROLS ================= */
-  const [muted, setMuted] = useState(false);
-  const [camera, setCamera] = useState(false);
-  const [hand, setHand] = useState(false);
-  const [sharing, setSharing] = useState(false);
-  const [cameraConfirmed, setCameraConfirmed] = useState(false);
-  const [micConfirmed, setMicConfirmed] = useState(false);
-
-  /* ================= VOICE + VIDEO ================= */
-  const {
-    myStream: audioStream,
-    isTalking,
-    participants,
-    endCall,
-    peerRef: voicePeer,
-  } = useVoiceChat(id!, username);
-
-  const { myStream: videoStream, remoteStreams } = useVideoChat(id!);
-
-  /* ================= VIDEO REFS ================= */
-  const myMainVideoRef = useRef<HTMLVideoElement | null>(null);
-  const myGridVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
-
-  /* ================= SOCKET CHAT ================= */
+  // Join chat room and listen for incoming messages
   useEffect(() => {
     if (!id) return;
 
@@ -97,25 +73,7 @@ export default function Room() {
     };
   }, [id, username]);
 
-  /* ================= IA JOIN ================= */
-  useEffect(() => {
-    if (!username) return;
-
-    aiSocket.emit("ai:join", {
-      username,
-      email: user?.email || "no-email@test.com",
-    });
-
-    aiSocket.on("ai:summary", (data: string) => {
-      setSummary(data);
-    });
-
-    return () => {
-      aiSocket.off("ai:summary");
-    };
-  }, [username, user]);
-
-  /* ================= SEND MESSAGE ================= */
+  // Send chat message to the room
   const sendMessage = () => {
     if (!message.trim() || !id) return;
 
@@ -126,39 +84,112 @@ export default function Room() {
       time: Date.now(),
     });
 
-    // 👉 IA también recibe el chat
-    aiSocket.emit("ai:chat", { username, message });
-
     setMessage("");
   };
 
-  /* ================= AUDIO ================= */
+  /* ================= CONTROLS ================= */
+  const [muted, setMuted] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [hand, setHand] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  // Confirmation flags (ask only once)
+  const [cameraConfirmed, setCameraConfirmed] = useState(false);
+  const [micConfirmed, setMicConfirmed] = useState(false);
+  const stopScreenShare = () => {
+  screenStream?.getTracks().forEach((t) => t.stop());
+  setScreenStream(null);
+  setSharing(false);
+  setFocusedPeer(null);
+};
+
+  /* ================= VOICE + VIDEO ================= */
+  const {
+    myStream: audioStream,
+    isTalking,
+    participants,
+    endCall,
+    peerRef: voicePeer,
+  } = useVoiceChat(id!, username);
+
+  const {
+  myStream: videoStream,
+  remoteStreams,
+  remoteScreenStream,
+  peerRef, // 🔥 FALTABA ESTO
+} = useVideoChat(id!);
+
+
+  /* ================= VIDEO REFS ================= */
+  // Main focused video
+  const myMainVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Local user video in grid
+  const myGridVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Remote users video refs indexed by peerId
+  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  /* ================= SCREEN SHARE ================= */
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  
+
+
+
+  // Ensure audio tracks start enabled
   useEffect(() => {
     if (!audioStream) return;
-    audioStream.getAudioTracks().forEach((t) => (t.enabled = !muted));
-  }, [audioStream, muted]);
 
-  /* ================= VIDEO PRINCIPAL ================= */
+    audioStream.getAudioTracks().forEach((track) => {
+      track.enabled = true;
+    });
+  }, [audioStream]);
+
+  /* ================= MAIN VIDEO (FOCUS) ================= */
   useEffect(() => {
-    if (!myMainVideoRef.current) return;
+  if (!myMainVideoRef.current) return;
 
-    if (!focusedPeer) {
-      myMainVideoRef.current.srcObject = videoStream ?? null;
-      return;
-    }
+  // 🔥 1. PANTALLA REMOTA (MÁXIMA PRIORIDAD)
+  if (remoteScreenStream) {
+    myMainVideoRef.current.srcObject = remoteScreenStream;
+    return;
+  }
 
-    const remote = remoteStreams[focusedPeer];
-    if (remote) myMainVideoRef.current.srcObject = remote;
-  }, [focusedPeer, videoStream, remoteStreams]);
+  // 🔥 2. MI PANTALLA
+  if (focusedPeer === "SCREEN" && screenStream) {
+    myMainVideoRef.current.srcObject = screenStream;
+    return;
+  }
 
-  /* ================= MI VIDEO GRID ================= */
+  // 3. SIN FOCO → CÁMARA LOCAL
+  if (!focusedPeer) {
+    myMainVideoRef.current.srcObject = videoStream ?? null;
+    return;
+  }
+
+  // 4. FOCO EN USUARIO REMOTO
+  const remoteStream = remoteStreams[focusedPeer];
+  if (remoteStream) {
+    myMainVideoRef.current.srcObject = remoteStream;
+  }
+}, [
+  focusedPeer,
+  videoStream,
+  remoteStreams,
+  screenStream,
+  remoteScreenStream, // 🔥 IMPORTANTE
+]);
+
+
+  /* ================= LOCAL CAMERA IN GRID ================= */
   useEffect(() => {
-    if (videoStream && myGridVideoRef.current) {
+    if (!videoStream || !myGridVideoRef.current) return;
+
+    if (myGridVideoRef.current.srcObject !== videoStream) {
       myGridVideoRef.current.srcObject = videoStream;
     }
   }, [videoStream]);
 
-  /* ================= REMOTE VIDEOS ================= */
+  /* ================= REMOTE CAMERAS ================= */
   useEffect(() => {
     Object.entries(remoteStreams).forEach(([peerId, stream]) => {
       const video = remoteVideoRefs.current[peerId];
@@ -175,10 +206,54 @@ export default function Room() {
   }, [camera, videoStream]);
 
   /* ================= CLEANUP ================= */
+  // Stop all audio and video tracks and clear video elements
   const stopAllMedia = () => {
     videoStream?.getTracks().forEach((t) => t.stop());
     audioStream?.getTracks().forEach((t) => t.stop());
+
+    if (myMainVideoRef.current) myMainVideoRef.current.srcObject = null;
+    if (myGridVideoRef.current) myGridVideoRef.current.srcObject = null;
+
+    Object.values(remoteVideoRefs.current).forEach((v) => {
+      if (v) v.srcObject = null;
+    });
   };
+
+  useEffect(() => {
+  return () => {
+    stopAllMedia();
+    stopScreenShare();
+  };
+}, []);
+
+const startScreenShare = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30 },
+      audio: false,
+    });
+
+    setScreenStream(stream);
+    setSharing(true);
+    setFocusedPeer("SCREEN");
+
+    Object.keys(remoteStreams).forEach((peerId) => {
+      peerRef.current?.call(peerId, stream, {
+        metadata: { type: "screen" },
+      });
+    });
+
+    stream.getVideoTracks()[0].onended = stopScreenShare;
+  } catch (err) {
+    console.error("Screen share error:", err);
+  }
+};
+
+
+
+
+
+
 
   /* ================= UI ================= */
   return (
@@ -186,57 +261,128 @@ export default function Room() {
       <section className="room__main">
         <h2 className="room__title">Meeting: {id}</h2>
 
-        {/* ===== VIDEO ===== */}
-        <div className="room__video-grid">
-          {videoStream && (
-            <video
-              ref={myMainVideoRef}
-              autoPlay
-              playsInline
-              muted
-              onClick={() => setFocusedPeer(null)}
-              className="room__video-self"
-              style={{ display: camera ? "block" : "none" }}
-            />
-          )}
+        {/* ===== MAIN VIDEO ===== */}
+<div className="room__video-grid">
 
-          {Object.entries(remoteStreams).map(([peerId]) => (
-            <video
-              key={peerId}
-              ref={(el) => {
-  remoteVideoRefs.current[peerId] = el;
+ 
+  {/* ===== MY CAMERA ===== */}
+  {videoStream && (
+    <video
+      ref={myMainVideoRef}
+      autoPlay
+      playsInline
+      muted
+      onClick={() => setFocusedPeer(null)}
+      className={`room__video-self ${
+        focusedPeer ? "is-background" : ""
+      }`}
+      style={{
+  display: "block",
+  cursor: "pointer",
 }}
 
-              autoPlay
-              playsInline
-              className="room__video-user"
-              onClick={() => setFocusedPeer(peerId)}
-            />
-          ))}
+    />
+  )}
+
+          {Object.entries(remoteStreams).map(([peerId]) => {
+            // If a video is focused, hide others
+            if (focusedPeer && focusedPeer !== peerId) return null;
+
+            return (
+              <video
+                key={peerId}
+                ref={(el) => {
+                  remoteVideoRefs.current[peerId] = el;
+                }}
+                autoPlay
+                playsInline
+                className={`room__video-user ${
+                  focusedPeer === peerId ? "is-focused" : ""
+                }`}
+              />
+            );
+          })}
         </div>
 
-        {/* ===== CONTROLES ===== */}
+        {/* ===== CONTROLS ===== */}
         <div className="room__controls">
-          <button className="room__btn" onClick={() => setMuted(!muted)}>
+          {/* Microphone toggle */}
+          <button
+            className="room__btn"
+            onClick={() => {
+              if (!audioStream) return;
+
+              const willMute = !muted;
+
+              // Ask confirmation only the first time microphone is enabled
+              if (!micConfirmed && !willMute) {
+                const ok = window.confirm(
+                  "¿Seguro que deseas encender el micrófono?"
+                );
+                if (!ok) return;
+                setMicConfirmed(true);
+              }
+
+              setMuted(willMute);
+
+              audioStream.getAudioTracks().forEach(
+                (track) => (track.enabled = !willMute)
+              );
+            }}
+          >
             {muted ? <MicOff /> : <Mic />}
           </button>
 
-          <button className="room__btn" onClick={() => setCamera(!camera)}>
+          {/* Camera toggle */}
+          <button
+            className="room__btn"
+            onClick={() => {
+              if (!videoStream) return;
+
+              const willTurnOn = !camera;
+
+              // Ask confirmation only the first time camera is enabled
+              if (!cameraConfirmed && willTurnOn) {
+                const ok = window.confirm(
+                  "¿Seguro que deseas encender la cámara?"
+                );
+                if (!ok) return;
+                setCameraConfirmed(true);
+              }
+
+              setCamera(willTurnOn);
+
+              videoStream.getVideoTracks().forEach(
+                (track) => (track.enabled = willTurnOn)
+              );
+            }}
+          >
             {camera ? <Camera /> : <CameraOut />}
           </button>
 
-          <button className="room__btn" onClick={() => setSharing(!sharing)}>
-            {sharing ? <Sharex /> : <Share />}
-          </button>
+          {/* Screen sharing toggle (UI only) */}
+          <button
+  className="room__btn"
+  onClick={() => {
+    if (!sharing) startScreenShare();
+    else stopScreenShare();
+  }}
+>
+  {sharing ? <Sharex /> : <Share />}
+</button>
 
+
+          {/* Raise hand toggle */}
           <button className="room__btn" onClick={() => setHand(!hand)}>
-            <Hand />
+            <span style={{ opacity: hand ? 1 : 0.4 }}>
+              <Hand />
+            </span>
           </button>
 
+          {/* End call */}
           <button
             className="room__btn room__btn--hangup"
             onClick={() => {
-              aiSocket.emit("ai:end-meeting"); // 🔥 IA
               stopAllMedia();
               endCall();
               navigate("/home");
@@ -247,19 +393,81 @@ export default function Room() {
         </div>
       </section>
 
-      {/* ===== PARTICIPANTES ===== */}
+      {/* ===== PARTICIPANTS GRID ===== */}
       <aside className="room__grid">
-        {participants.map((p) => (
-          <div
-            key={p.peerId}
-            className={`room__grid-item ${p.talking ? "is-speaking" : ""}`}
-          >
+        {/* LOCAL USER */}
+        <div className="room__grid-item" onClick={() => setFocusedPeer(null)}>
+          {videoStream && (
+            <video
+              ref={myGridVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="room__grid-video"
+              style={{ display: camera ? "block" : "none" }}
+            />
+          )}
+
+          {!camera && (
             <div className="room__small-avatar">
-              {p.username.charAt(0).toUpperCase()}
+              <div className={`initial-badge ${isTalking ? "talking" : ""}`}>
+                {username.charAt(0).toUpperCase()}
+              </div>
+              <div className="mic-status">
+                {isTalking ? <Mic /> : <MicOff />}
+              </div>
             </div>
-            <div className="room__name-tag">{p.username}</div>
-          </div>
-        ))}
+          )}
+        </div>
+
+        {/* OTHER PARTICIPANTS */}
+        {participants
+          .filter((u) => u.peerId !== voicePeer.current?.id)
+          .filter((u) => u.peerId !== focusedPeer)
+          .map((u) => {
+            const stream = remoteStreams[u.peerId];
+
+            return (
+              <div
+                key={u.peerId}
+                className="room__grid-item"
+                onClick={() => {
+                  if (!stream) return;
+                  setFocusedPeer((prev) =>
+                    prev === u.peerId ? null : u.peerId
+                  );
+                }}
+                style={{ cursor: "pointer" }}
+              >
+                {stream ? (
+                  <video
+                    ref={(el) => {
+                      if (el && el.srcObject !== stream) {
+                        remoteVideoRefs.current[u.peerId] = el;
+                        el.srcObject = stream;
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                    className="room__grid-video"
+                  />
+                ) : (
+                  <div className="room__small-avatar">
+                    <div
+                      className={`initial-badge ${
+                        u.talking ? "talking" : ""
+                      }`}
+                    >
+                      {u.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="mic-status">
+                      {u.talking ? <Mic /> : <MicOff />}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </aside>
 
       {/* ===== CHAT ===== */}
@@ -267,7 +475,7 @@ export default function Room() {
         className="room__chat-button"
         onClick={() => setChatOpen(!chatOpen)}
       >
-        💬
+        <img src="/images/chat.png" alt="Chat" />
       </button>
 
       {chatOpen && (
@@ -277,7 +485,8 @@ export default function Room() {
             <div className="room__chat-messages">
               {messages.map((m, i) => (
                 <p key={i}>
-                  <strong>{m.sender}:</strong> {m.message}
+                  <strong>{m.sender}: </strong>
+                  {m.message}
                 </p>
               ))}
             </div>
@@ -286,22 +495,12 @@ export default function Room() {
               <input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Mensaje..."
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Write a message..."
               />
-              <button onClick={sendMessage}>Enviar</button>
+              <button onClick={sendMessage}>Send</button>
             </div>
           </div>
         </>
-      )}
-
-      {/* ===== SUMMARY IA ===== */}
-      {summary && (
-        <div className="summary-modal">
-          <h2>📄 Resumen de la reunión</h2>
-          <pre>{summary}</pre>
-          <button onClick={() => setSummary(null)}>Cerrar</button>
-        </div>
       )}
     </main>
   );
